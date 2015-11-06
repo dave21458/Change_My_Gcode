@@ -1,6 +1,8 @@
 # Change_My_Gcode
 For use with 3D Printing
 
+goto https://github.com/dave21458/Phomium.git to run this code
+
 My Target:
 The target of this project is to be able to edit a g-code file used in 3D printers.
 
