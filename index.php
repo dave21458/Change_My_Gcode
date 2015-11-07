@@ -86,11 +86,14 @@ eload = new Date().getTime();
 		Print Length/Speed : <strong id = 'segLen'> 0 </strong><br/>
 		Move Length/Speed :  <strong id = 'segMov'> 0 </strong><br/>
 		Retract Length/Speed :  <strong id = 'segRet'> 0 </strong><br/>
+		GCode Line :  <strong id = 'line'> 0 </strong>
 	</div>
 	<h2 id = 'optionsLabel'> Options</h2>
 	<div id = "options">
-		Show Moves <input type = 'checkbox' id = 'optMove' onchange = 'this.checked ? options.showMoves = 1:options.showMoves = 0;changeLayer(curLayer)'/> <br/>
-		Show Retracts <input type = 'checkbox' id = 'optRetract' onchange = 'this.checked ? options.showRetracts = 1:options.showRetracts = 0;changeLayer(curLayer)'/>
+		<input type = 'checkbox' id = 'optMove' onchange = 'this.checked ? options.showMoves = 1:options.showMoves = 0;changeLayer(curLayer)'/>Show Moves<br/>
+		<input type = 'checkbox' id = 'optRetract' onchange = 'this.checked ? options.showRetracts = 1:options.showRetracts = 0;changeLayer(curLayer)'/>Show Retracts  <br/>
+		<input type = 'checkbox' id = 'optPrevLay' onchange = 'this.checked ? options.showPrevLayers = 1:options.showPrevLayers = 0;'/>Show Previous Layers <br/>
+		<input type = 'checkbox' id = 'optAllLay' onchange = 'this.checked ? options.showAllLayers = 1:options.showAllLayers = 0;'/>Show All Layers
 	</div>
 	
 </div>
@@ -106,43 +109,62 @@ function getFile()
 	}
 }
 
+function showLayers()
+{
+	clearLayer();
+	if(options.showPrevLayers){
+		ctx.globalAlpha = .1;
+		for(var cnt1 = 1;cnt1 < curLayer;cnt1++){
+			drawLayer(cnt1);
+		}
+	}
+	ctx.globalAlpha = 1;
+	drawLayer(curLayer);
+	drawScale();
+	upMeasure();
+	updateLayerInfo();
+	te = new Date().getTime();
+}
+
 function changeLayer(lay)
 {
 	if(lay > model.length)lay = model.length;
 	curLayer = lay;
 	clearLayer();
 	drawTo = model[curLayer].printSegments;
-	drawLayer(drawTo);
+	showLayers();
 	$("#segmentSlider").slider("option","max",model[curLayer].printSegments);
 	$("#segmentSlider").slider("option","value",model[curLayer].printSegments);
 	$("#layerSlider").slider("option","value",lay);
 	
 }
 
-function drawLayer(to)
+function drawLayer(layer)
 {
 	var pCnt = 0;
 	var mCnt = 0;
 	var rCnt = 0;
+	var sCnt = 0;
 	var hasMove = -1;
 	var hasRetract = -1;
-	var print = model[curLayer].print;
-	var move = model[curLayer].move;
-	var retract = model[curLayer].retract;
+	var print = model[layer].print;
+	var move = model[layer].move;
+	var retract = model[layer].retract;
 	offset.pCenterX = offset.centerX;
 	offset.pCenterY = offset.centerY;
 	offset.centerX = (offset.px - offset.x);
 	offset.centerY = (offset.py - offset.y); 
-	while(pCnt < to){
+	layer == curLayer ? sCnt = drawTo:sCnt = model[layer].printSegments
+	while(pCnt < sCnt){
 		ctx.beginPath();
-		pCnt == to-1 ? ctx.setLineDash([5,10]):ctx.setLineDash([1,0]);
+		pCnt == sCnt-1 ? ctx.setLineDash([5,10]):ctx.setLineDash([1,0]);
 		if(rCnt < retract.length){
 			if(retract[rCnt].line <= print[pCnt].line){
 				if(options.showRetracts){
 					retract[rCnt].de > 0 ? ctx.fillStyle = colors.retractIn: ctx.fillStyle = colors.retractOut ;
 					drawCircle(retract[rCnt]);
 				}
-				if(pCnt == to - 1)hasRetract = rCnt;
+				if(pCnt == sCnt - 1)hasRetract = rCnt;
 				rCnt++;
 			}
 		}
@@ -152,7 +174,7 @@ function drawLayer(to)
 				ctx.strokeStyle = colors.move;
 				drawLine(move[mCnt]);
 			}
-			if(pCnt == to - 1)hasMove = mCnt;
+			if(pCnt == sCnt - 1)hasMove = mCnt;
 			mCnt++;
 			}
 		}
@@ -161,11 +183,7 @@ function drawLayer(to)
 		pCnt++;
 	}
 	ctx.setLineDash([1,0])
-	drawScale();
-	upMeasure();
-	updateLayerInfo();
-	updateSegmentInfo(pCnt - 1,hasRetract,hasMove);
-	te = new Date().getTime();
+	if(layer == curLayer)updateSegmentInfo(pCnt - 1,hasRetract,hasMove);
 }
 
 function drawLine(data)
@@ -211,12 +229,10 @@ function zoomer(e)
 {
 	if(!e.button == 1){
 		pZoom = zoom;
-		//var delta = Math.max(-1, Math.min(1,e.wheelDelta));
-		if((e.wheelDelta < 0 && zoom > .2) || (e.wheelDelta > 0 && zoom < 20)){
-			//zoom += delta / 10;
+		if((e.wheelDelta < 0 && zoom > .2) || (e.wheelDelta > 0 && zoom < 50)){
 			e.wheelDelta > 0 ? zoom += 1:zoom  -= 1;
 			clearLayer();
-			drawLayer(drawTo);
+			showLayers();
 		}
 	}
 }
@@ -229,7 +245,7 @@ function mover(e)
 		pMouseX = e.clientX;
 		pMouseY = e.clientY;
 		clearLayer();
-		drawLayer(drawTo);
+		showLayers();
 	}
 }
 
@@ -265,7 +281,7 @@ function keys(e)
 			break;
 	}
 	clearLayer();
-	drawLayer(drawTo);
+	showLayers();
 }
 		
 
@@ -276,6 +292,7 @@ function startMover(e)
 		pMouseX = e.clientX;
 		pMouseY = e.clientY;
 	}
+	if(e.button == 1) measurer(e);	
 }
 
 function stopMover(e)
@@ -340,6 +357,7 @@ function updateSegmentInfo(seg,ret,move)
 {
 	$("#segNum").html((seg + 1) + " of " + model[curLayer].print.length);
 	$("#segLen").html((Math.round(model[curLayer].print[seg].len *10)/10) + "/" + model[curLayer].print[seg].f);
+	$("#line").html(model[curLayer].print[seg].line);
 	$("#segExt").html((Math.round(model[curLayer].print[seg].de *100)/100) + "/" + (Math.round((model[curLayer].print[seg].de / model[curLayer].print[seg].len)*1000)/10) + "%");
 	if(ret < 0){
 		$("#segRet").html("NA");
@@ -360,7 +378,7 @@ var pMouseY = 0;
 var pZoom = 0;
 var curLayer = 1;
 var retractCirRad = 5;
-var options = {showMoves:0,showRetracts:0};
+var options = {showMoves:0,showRetracts:0,showPrevLayers:0,showAllLayers:0};
 var laySelect = document.getElementById('laySel');
 var gc = document.getElementById('gcodeCanvas');
 gc.height = offset.y * 2;
@@ -371,7 +389,7 @@ if (gc.addEventListener) {
 	gc.addEventListener("mouseup",stopMover, false);
 	gc.addEventListener("mouseover", startKeys, false);
 	gc.addEventListener("mouseout",stopMover, false);
-	gc.addEventListener("click",measurer, false);
+	//gc.addEventListener("click",measurer, false);
 }
 var ctx = gc.getContext('2d');
 var colors = {print:"#ff0000",move:"#0000ff",retractIn: "#00ff00",retractOut:"#00ffff",text: "#000000"};
@@ -381,7 +399,7 @@ var drawTo = model[curLayer].printSegments;
 laySelect.max = layCnt ;
 laySelect.value = curLayer;
 $("#layHigh").html(layers_z[curLayer - 1]);
-drawLayer(drawTo);
+showLayers();
 $("#layerSlider").slider({
 	orientation:'vertical',
 	min:1,
@@ -398,7 +416,7 @@ $("#segmentSlider").slider({
 	max:model[curLayer].printSegments ,
 	step:1,
 	value:model[curLayer].printSegments -1,
-	slide:function(e,ui){drawTo = ui.value;clearLayer();drawLayer(drawTo)}
+	slide:function(e,ui){drawTo = ui.value;clearLayer();showLayers()}
 });
 $(".sSlider").css({"width":gc.width ,"top":parseInt($("#gcodeCanvas").css("top"),10)+gc.height + 20});
 $("#segmentSlider").css({'width':gc.width});
