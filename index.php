@@ -5,6 +5,7 @@
 
 <html>
 <head>
+<title> Gcode Editor</title>
 <script>
 ts = new Date().getTime();
 </script>
@@ -40,6 +41,21 @@ eload = new Date().getTime();
 	position:absolute;
 	left:530;
 	top 50;
+	width:350;
+	border:1px solid #000000;
+	padding : 5 5 5 5;
+}
+.gcode{
+	position:absolute;
+	left:780;
+	top:10;
+	height:750;
+	width:400;
+	overflow-y: auto;
+	border:1px solid #000000;
+}
+.gcodeline{
+	color:grey;
 }
 </style>
 	
@@ -86,17 +102,18 @@ eload = new Date().getTime();
 		Print Length/Speed : <strong id = 'segLen'> 0 </strong><br/>
 		Move Length/Speed :  <strong id = 'segMov'> 0 </strong><br/>
 		Retract Length/Speed :  <strong id = 'segRet'> 0 </strong><br/>
-		GCode Line :  <strong id = 'line'> 0 </strong>
+		GCode :  <strong id = 'line'>  </strong>
 	</div>
 	<h2 id = 'optionsLabel'> Options</h2>
 	<div id = "options">
-		<input type = 'checkbox' id = 'optMove' onchange = 'this.checked ? options.showMoves = 1:options.showMoves = 0;changeLayer(curLayer)'/>Show Moves<br/>
-		<input type = 'checkbox' id = 'optRetract' onchange = 'this.checked ? options.showRetracts = 1:options.showRetracts = 0;changeLayer(curLayer)'/>Show Retracts  <br/>
-		<input type = 'checkbox' id = 'optPrevLay' onchange = 'this.checked ? options.showPrevLayers = 1:options.showPrevLayers = 0;'/>Show Previous Layers <br/>
-		<input type = 'checkbox' id = 'optAllLay' onchange = 'this.checked ? options.showAllLayers = 1:options.showAllLayers = 0;'/>Show All Layers
+		<input type = 'checkbox' id = 'optMove' onchange = 'this.checked ? options.showMoves = 1:options.showMoves = 0;showLayers();'/>Show Moves<br/>
+		<input type = 'checkbox' id = 'optRetract' onchange = 'this.checked ? options.showRetracts = 1:options.showRetracts = 0;showLayers()'/>Show Retracts  <br/>
+		<input type = 'checkbox' id = 'optPrevLay' onchange = 'this.checked ? options.showPrevLayers = 1:options.showPrevLayers = 0;showLayers();'/>Show Previous Layers (will cause lagging) <br/>
+		<input type = 'checkbox' id = 'optAllLay' onchange = 'this.checked ? options.showAllLayers = 1:options.showAllLayers = 0;showLayers();'/>Show All Layers (not yet implemented)<br/>
+		<input type = 'checkbox' id = 'optgcode' onchange = 'this.checked ? options.showGcode = 1:options.showGcode = 0;showLayers();'/>Show Gcode; 
 	</div>
-	
 </div>
+<div id = 'gcodeFile' class = 'gcode'></div>
 <script>
 
 
@@ -111,9 +128,10 @@ function getFile()
 
 function showLayers()
 {
+	lts = new Date().getTime();
 	clearLayer();
 	if(options.showPrevLayers){
-		ctx.globalAlpha = .1;
+		ctx.globalAlpha = .3;
 		for(var cnt1 = 1;cnt1 < curLayer;cnt1++){
 			drawLayer(cnt1);
 		}
@@ -223,6 +241,19 @@ function drawScale()
 function clearLayer()
 {
 	ctx.clearRect(0,0,gc.width,gc.height);
+}
+
+function showGcode()
+{
+	var str ="";
+	$("#gcodeFile").html(str);
+	for(var cnt = 1;cnt < model.gcode.length;cnt++){
+		str += "<span class = 'gcodeline' id = 'g" + cnt + "'>";
+		str += "<strong>"+ cnt + "</strong> " + model.gcode[cnt];
+		str += "</span><br/>";
+		
+	}
+	$("#gcodeFile").html($("#gcodeFile").html() + str);
 }
 
 function zoomer(e)
@@ -357,7 +388,7 @@ function updateSegmentInfo(seg,ret,move)
 {
 	$("#segNum").html((seg + 1) + " of " + model[curLayer].print.length);
 	$("#segLen").html((Math.round(model[curLayer].print[seg].len *10)/10) + "/" + model[curLayer].print[seg].f);
-	$("#line").html(model[curLayer].print[seg].line);
+	$("#line").html(model.gcode[model[curLayer].print[seg].line]);
 	$("#segExt").html((Math.round(model[curLayer].print[seg].de *100)/100) + "/" + (Math.round((model[curLayer].print[seg].de / model[curLayer].print[seg].len)*1000)/10) + "%");
 	if(ret < 0){
 		$("#segRet").html("NA");
@@ -369,6 +400,17 @@ function updateSegmentInfo(seg,ret,move)
 	}else{
 		$("#segMov").html( (Math.round(model[curLayer].move[move].len *10)/10) + "/" + (model[curLayer].move[move].f));
 	}
+	if(options.showGcode){
+		$("#gcodeFile").css("visibility","visible");
+		var gline = model[curLayer].print[seg].line;
+		$("#g"+pGline).css("color","gray");
+		$("#g"+gline).css("color","red");
+		pGline = gline;
+		if(gline > 40)gline -= 20;
+		document.getElementById("g"+gline).scrollIntoView();
+	}else{
+		$("#gcodeFile").css("visibility","hidden");
+	}
 }
 
 var zoom = 5;
@@ -378,9 +420,13 @@ var pMouseY = 0;
 var pZoom = 0;
 var curLayer = 1;
 var retractCirRad = 5;
-var options = {showMoves:0,showRetracts:0,showPrevLayers:0,showAllLayers:0};
+var options = {showMoves:0,showRetracts:0,showPrevLayers:0,showAllLayers:0,showGcode:0};
 var laySelect = document.getElementById('laySel');
+var colors = {print:"#ff0000",move:"#0000ff",retractIn: "#00ff00",retractOut:"#00ffff",text: "#000000"};
+var drawTo = model[curLayer].printSegments;
+var pGline = 1;
 var gc = document.getElementById('gcodeCanvas');
+var ctx = gc.getContext('2d');
 gc.height = offset.y * 2;
 gc.width = offset.x * 2;
 if (gc.addEventListener) {
@@ -391,14 +437,12 @@ if (gc.addEventListener) {
 	gc.addEventListener("mouseout",stopMover, false);
 	//gc.addEventListener("click",measurer, false);
 }
-var ctx = gc.getContext('2d');
-var colors = {print:"#ff0000",move:"#0000ff",retractIn: "#00ff00",retractOut:"#00ffff",text: "#000000"};
 offset.centerX = (offset.px - offset.x)/zoom;
 offset.centerY = (offset.py - offset.y)/zoom;
-var drawTo = model[curLayer].printSegments;
 laySelect.max = layCnt ;
 laySelect.value = curLayer;
 $("#layHigh").html(layers_z[curLayer - 1]);
+showGcode();
 showLayers();
 $("#layerSlider").slider({
 	orientation:'vertical',
@@ -421,7 +465,11 @@ $("#segmentSlider").slider({
 $(".sSlider").css({"width":gc.width ,"top":parseInt($("#gcodeCanvas").css("top"),10)+gc.height + 20});
 $("#segmentSlider").css({'width':gc.width});
 $(".info").css({"left":parseInt($(".lSlider").css("left"),10)+ 30});
+$(".gcode").css({"left":parseInt($(".info").css("left"),10)+ parseInt($(".info").css("width"),10)+ 20});
+$(".ui-widget-content").css("background","blue");
+$(".ui-slider-handle.ui-state-default").css("background","green")
 updateModelInfo();
+
 </script>
 
 </body>

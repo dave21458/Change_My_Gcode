@@ -43,12 +43,15 @@ function getGCode()
 		$str .="model[$layer].move = [];\n";
 		$str .="model[$layer].retract = [];\n";
 		$str .="model[$layer].command = [];\n";
+		$str .="model['gcode'] = [];\n";
 		$str .= "var layers_z = [];\n";
 		$str .= "var segmentCnt = [];\n";
 		fwrite($tmp,$str);
 		$str = "";
 		while($fLine = fgets($gfs)){
-			$fLine = strtolower(trim($fLine));
+			$fLine = trim($fLine);
+			fwrite($tmp,"model['gcode'][$line]='$fLine';\n");
+			$fLine = strtolower($fLine);
 			if(substr($fLine,0,1) == ';' || strlen($fLine) < 2){
 				$line++;
 				continue;
