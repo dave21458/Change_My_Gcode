@@ -12,6 +12,7 @@ ts = new Date().getTime();
 <script type="text/javascript" src="jquery-ui-1.11.4.custom\jquery.js"></script>
 <script type="text/javascript" src="jquery-ui-1.11.4.custom\jquery-ui.js"></script>
 <script type="text/javascript" src="jquery-ui-1.11.4.custom\jquery-ui.min.js"></script>
+<script type="text/javascript" src="ajax.js"></script>
 <script>
 sload = new Date().getTime();
 </script>
@@ -120,10 +121,24 @@ eload = new Date().getTime();
 function getFile()
 {
 	if(phomium.result){
-		document.location = 'index.php?file='+phomium.resultText + "\\" + phomium.resultArray[0];
-		LoadModel("model.js");
-		changeLayer(1);
+		clearLayer();
+		ctx.font = "30px Arial";
+		ctx.strokeText("Parsing File " ,30,30);
+		ajaxReq(LoadModel,'gcode.php',"file=" + phomium.resultText + "\\" + phomium.resultArray[0]);
 	}
+}
+
+function LoadModel(scriptName) {
+   ctx.font = "30px Arial";
+   ctx.strokeText("Loading Data " ,30,60);
+   var script = document.createElement('script');
+   script.src = scriptName[1];
+   script.onload = function(){
+	   updateModelInfo();
+	   showGcode();
+	   changeLayer(1);
+	};
+	document.head.appendChild(script);
 }
 
 function showLayers()
@@ -352,14 +367,6 @@ function upMeasure()
 	$("#measure").html("X" + x + " : Y" + y + " :Length " + len);
 }
 
-function LoadModel(scriptName) {
-   var docHeadObj = document.getElementsByTagName("head")[0];
-   var dynamicScript = document.createElement("script");
-   dynamicScript.type = "text/javascript";
-   dynamicScript.src = scriptName;
-   docHeadObj.appendChild(dynamicScript);
-}
-
 function updateModelInfo()
 {
 	$("#fName").html(model.name);
@@ -370,6 +377,7 @@ function updateModelInfo()
 	$("#totPriLen").html(Math.round(totalPrintLen) + "mm");
 	$("#totMovLen").html(Math.round(totalMoveLen) + "mm");
 	$("#totExt").html(Math.round(totalExtrudeLen * 10)/10 + "mm");
+	$("#layerSlider").slider("option","max",layCnt);
 }
 
 function updateLayerInfo()
@@ -389,7 +397,7 @@ function updateSegmentInfo(seg,ret,move)
 	$("#segNum").html((seg + 1) + " of " + model[curLayer].print.length);
 	$("#segLen").html((Math.round(model[curLayer].print[seg].len *10)/10) + "/" + model[curLayer].print[seg].f);
 	$("#line").html(model.gcode[model[curLayer].print[seg].line]);
-	$("#segExt").html((Math.round(model[curLayer].print[seg].de *100)/100) + "/" + (Math.round((model[curLayer].print[seg].de / model[curLayer].print[seg].len)*1000)/10) + "%");
+	$("#segExt").html((Math.round(model[curLayer].print[seg].de *100)/100) + "/" + (Math.round((model[curLayer].print[seg].de / model[curLayer].print[seg].len)*10000)/10000) );
 	if(ret < 0){
 		$("#segRet").html("NA");
 	}else{
@@ -406,7 +414,7 @@ function updateSegmentInfo(seg,ret,move)
 		$("#g"+pGline).css("color","gray");
 		$("#g"+gline).css("color","red");
 		pGline = gline;
-		if(gline > 40)gline -= 20;
+		if(gline > 21)gline -= 20;
 		document.getElementById("g"+gline).scrollIntoView();
 	}else{
 		$("#gcodeFile").css("visibility","hidden");

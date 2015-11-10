@@ -1,4 +1,5 @@
 <?php
+if(array_key_exists('file',$_REQUEST))getGcode();
 
 function getGCode()
 {
@@ -156,10 +157,11 @@ function getGCode()
 		$str .="model[$layer].printSegments = $printCnt;\n";
 		$str .="model[$layer].moveSegments = $moveCnt;\n";
 		fwrite($tmp, $str);
-		
-	}
-	fwrite($tmp,"var endTime = ".microtime(true) . ";\n");
-	fclose($tmp);
+		fwrite($tmp,"var endTime = ".microtime(true) . ";\n");
+		echo "<meta &&&model.js&&&/>";
+		fclose($tmp);
+	}	
+	
 }
 
 ?>
